@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DailyPulse — Your Personal AI Morning Brief</title>
+  <meta name="description" content="Aggregates HackerNews, RSS, and Reddit. Summarized by local LLM. One command. No cloud." />
+  <meta name="theme-color" content="#1e2327" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root { --bg: #1e2327; --bg2: #252b30; --bg3: #2d343a; --border: #3a4149; --fg: #cdd6df; --fg-dim: #7a8896; --accent: #4fc3f7; --accent2: #81c784; --warn: #ffb74d; --mono: "SFMono-Regular", Consolas, monospace; --sans: -apple-system, sans-serif; }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 16px; line-height: 1.7; min-height: 100vh; }
+    a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+    nav { position: sticky; top: 0; z-index: 100; background: rgba(30,35,39,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 2rem; height: 52px; }
+    .nav-brand { font-family: var(--mono); color: var(--accent); }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { color: var(--fg-dim); font-size: 0.875rem; }
+    .hero { text-align: center; padding: 5rem 1.5rem 4rem; position: relative; }
+    .hero::before { content:""; position:absolute; inset:0; background:radial-gradient(ellipse 70% 40% at 50% 0%,rgba(79,195,247,.07) 0%,transparent 70%); pointer-events:none; }
+    .hero-emoji { font-size: 3rem; display: block; margin-bottom: 1rem; }
+    .hero h1 { font-size: clamp(2rem,5vw,3.5rem); font-weight:700; color:#fff; margin-bottom:.5rem; }
+    .hero-sub { color: var(--fg-dim); margin-bottom: 2rem; }
+    .badges { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:center; margin-bottom:2.5rem; }
+    .badges img { height:20px; }
+    .btn-group { display:flex; flex-wrap:wrap; gap:.75rem; justify-content:center; }
+    .btn { display:inline-flex; align-items:center; gap:.4rem; padding:.6rem 1.4rem; border-radius:6px; font-size:.9rem; font-weight:600; transition:opacity .15s,transform .15s; border:none; cursor:pointer; }
+    .btn:hover { opacity:.85; transform:translateY(-1px); text-decoration:none; }
+    .btn-primary { background:var(--accent); color:#111; }
+    .btn-secondary { background:var(--bg3); color:var(--fg); border:1px solid var(--border); }
+    .terminal-wrap { max-width:680px; margin:3rem auto 0; padding:0 1rem; }
+    .terminal { background:#0d1117; border:1px solid var(--border); border-radius:10px; overflow:hidden; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+    .terminal-bar { background:var(--bg3); padding:.6rem 1rem; display:flex; align-items:center; gap:.5rem; border-bottom:1px solid var(--border); }
+    .dot { width:12px; height:12px; border-radius:50%; }
+    .dot-r{background:#ef5350}.dot-y{background:#ffb74d}.dot-g{background:#81c784}
+    .terminal-title { flex:1; text-align:center; font-family:var(--mono); font-size:.75rem; color:var(--fg-dim); }
+    .terminal-body { padding:1.25rem 1.5rem; font-family:var(--mono); font-size:.85rem; line-height:1.8; }
+    .t-prompt{color:var(--accent2)}.t-cmd{color:#fff}.t-out{color:var(--fg-dim)}.t-hl{color:var(--accent)}.t-grn{color:var(--accent2)}.t-ylw{color:var(--warn)}
+    .container { max-width:860px; margin:0 auto; padding:0 1.5rem; }
+    section { padding:4rem 0; } section+section { border-top:1px solid var(--border); }
+    h2 { font-size:1.6rem; font-weight:700; margin-bottom:1.5rem; color:#fff; }
+    .feature-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:1rem; }
+    .feature-card { background:var(--bg2); border:1px solid var(--border); border-radius:8px; padding:1.25rem; }
+    .feature-card .icon { font-size:1.5rem; margin-bottom:.5rem; }
+    .feature-card h3 { font-size:.95rem; font-weight:600; color:#fff; margin-bottom:.3rem; }
+    .feature-card p { font-size:.85rem; color:var(--fg-dim); }
+    pre { background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:1.25rem 1.5rem; overflow-x:auto; font-family:var(--mono); font-size:.85rem; line-height:1.7; color:var(--fg); }
+    code { font-family:var(--mono); }
+    table { width:100%; border-collapse:collapse; font-size:.9rem; }
+    th { background:var(--bg3); color:#fff; text-align:left; padding:.6rem 1rem; border:1px solid var(--border); }
+    td { padding:.6rem 1rem; border:1px solid var(--border); color:var(--fg-dim); }
+    td code { background:var(--bg3); padding:2px 6px; border-radius:4px; color:var(--fg); }
+    tr:nth-child(even) td { background:var(--bg2); }
+    .flow { display:flex; flex-wrap:wrap; align-items:center; gap:.5rem; font-family:var(--mono); font-size:.85rem; background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:1.5rem; }
+    .flow-node { background:var(--bg3); border:1px solid var(--border); border-radius:6px; padding:.4rem .8rem; white-space:nowrap; color:var(--fg); }
+    .flow-arrow { color:var(--fg-dim); }
+    footer { border-top:1px solid var(--border); text-align:center; padding:2.5rem 1rem; font-size:.85rem; color:var(--fg-dim); }
+    footer a { color:var(--fg-dim); } footer a:hover { color:var(--accent); }
+  </style>
+</head>
+<body>
+<nav>
+  <span class="nav-brand">🌅 daily-pulse</span>
+  <div class="nav-links">
+    <a href="#features">Features</a><a href="#quickstart">Install</a><a href="#howto">Usage</a>
+    <a href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+<section class="hero">
+  <span class="hero-emoji">🌅</span>
+  <h1>DailyPulse</h1>
+  <p class="hero-sub">Your personal AI morning brief — local, private, free.</p>
+  <div class="badges">
+    <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT" />
+    <img src="https://img.shields.io/badge/Powered%20by-Ollama-black?style=flat" alt="Ollama" />
+    <img src="https://img.shields.io/badge/Cloud-None-lightgrey?style=flat" alt="No Cloud" />
+  </div>
+  <div class="btn-group">
+    <a class="btn btn-primary" href="#quickstart">⚡ Get Started</a>
+    <a class="btn btn-secondary" href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">View on GitHub</a>
+  </div>
+  <div class="terminal-wrap"><div class="terminal">
+    <div class="terminal-bar"><div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div><span class="terminal-title">bash</span></div>
+    <div class="terminal-body">
+      <div><span class="t-prompt">$ </span><span class="t-cmd">python3 daily_pulse.py run</span></div>
+      <div class="t-out">🌅 DailyPulse starting...</div>
+      <div class="t-out">  📡 Fetching HackerNews...</div>
+      <div class="t-out">  ✅ Collected 20 items  🤖 Summarizing...</div>
+      <br/><div><span class="t-hl"># 🌅 DailyPulse — 2026-06-19</span></div>
+      <div><span class="t-grn">## 📰 Top Stories Today</span></div>
+      <div class="t-out">### 1. Snap unveils $2,195 AR Glasses...</div>
+      <div><span class="t-ylw">## 🔑 Keywords: AR, AI agents, local LLM</span></div>
+      <div class="t-grn">✅ Done!</div>
+    </div>
+  </div></div>
+</section>
+<section id="features"><div class="container">
+  <h2>✨ Features</h2>
+  <div class="feature-grid">
+    <div class="feature-card"><div class="icon">🔒</div><h3>100% Private</h3><p>Local Ollama — nothing leaves your machine.</p></div>
+    <div class="feature-card"><div class="icon">📡</div><h3>Multi-Source</h3><p>HackerNews, RSS feeds, Reddit — all in one.</p></div>
+    <div class="feature-card"><div class="icon">🤖</div><h3>AI Summarized</h3><p>Ollama (local) or Claude API. Top 3–5 stories.</p></div>
+    <div class="feature-card"><div class="icon">🌐</div><h3>EN / JA</h3><p>English or Japanese. One flag: <code>--lang ja</code>.</p></div>
+    <div class="feature-card"><div class="icon">⏰</div><h3>Automatable</h3><p>cron, GitHub Actions, launchd — set and forget.</p></div>
+    <div class="feature-card"><div class="icon">📄</div><h3>Markdown or HTML</h3><p>stdout, file, or your note-taking app.</p></div>
+  </div>
+</div></section>
+<section id="quickstart"><div class="container">
+  <h2>🚀 Quick Start</h2>
+  <pre># Clone &amp; install
+git clone https://github.com/CHUNK-jp/daily-pulse.git &amp;&amp; cd daily-pulse
+pip install -r requirements.txt
+
+# Local LLM (free)
+ollama pull llama3.2
+python3 daily_pulse.py run
+
+# Claude API
+ANTHROPIC_API_KEY=sk-... python3 daily_pulse.py run --provider claude
+
+# Save / Japanese
+python3 daily_pulse.py run -o ~/brief.md --lang ja</pre>
+</div></section>
+<section id="howto"><div class="container">
+  <h2>📖 Commands</h2>
+  <table><thead><tr><th>Command</th><th>Description</th></tr></thead><tbody>
+    <tr><td><code>run</code></td><td>Fetch all sources and print AI brief</td></tr>
+    <tr><td><code>run -o FILE</code></td><td>Save brief to a file</td></tr>
+    <tr><td><code>run --format html</code></td><td>Output as HTML</td></tr>
+    <tr><td><code>run --lang ja</code></td><td>Summarize in Japanese</td></tr>
+    <tr><td><code>run --provider claude</code></td><td>Use Claude API</td></tr>
+    <tr><td><code>init</code></td><td>Create default config file</td></tr>
+    <tr><td><code>sources</code></td><td>List configured sources</td></tr>
+  </tbody></table>
+</div></section>
+<section><div class="container">
+  <h2>🧠 How It Works</h2>
+  <div class="flow">
+    <div class="flow-node">HackerNews</div><span class="flow-arrow">┐</span>
+    <div class="flow-node">RSS Feeds</div><span class="flow-arrow">┼──►</span>
+    <div class="flow-node">Collect</div><span class="flow-arrow">──►</span>
+    <div class="flow-node">Ollama / Claude</div><span class="flow-arrow">──►</span>
+    <div class="flow-node">Your Brief</div>
+    <div class="flow-node">Reddit</div><span class="flow-arrow">┘</span>
+  </div>
+</div></section>
+<footer>
+  <p>Built by <a href="https://github.com/CHUNK-jp" target="_blank">CHUNK-jp</a> · <a href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">GitHub</a> · MIT</p>
+  <p style="margin-top:.4rem">No cloud. No subscription. Just your brief.</p>
+  <p style="margin-top:1rem">← Back to <a href="https://chunk-jp.github.io/">CHUNK-jp projects</a></p>
+</footer>
+</body>
+</html>
