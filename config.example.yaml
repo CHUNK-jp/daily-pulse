@@ -1,0 +1,40 @@
+# DailyPulse Configuration
+# Copy to ~/.config/daily-pulse/config.yaml and customize.
+
+sources:
+  hackernews:
+    enabled: true
+    limit: 10
+
+  rss:
+    - name: The Verge
+      url: https://www.theverge.com/rss/index.xml
+    - name: TechCrunch
+      url: https://techcrunch.com/feed/
+    # Add your own:
+    # - name: My Blog
+    #   url: https://example.com/feed.xml
+
+  reddit:
+    - subreddit: programming
+      limit: 5
+    - subreddit: machinelearning
+      limit: 5
+    # - subreddit: python
+    #   limit: 5
+
+ai:
+  provider: ollama            # "ollama" (local, free) or "claude" (API)
+
+  # Ollama settings (local LLM — https://ollama.com)
+  ollama_model: llama3.2
+  ollama_url: http://localhost:11434
+
+  # Claude settings (set ANTHROPIC_API_KEY env var)
+  claude_api_key: ""
+  claude_model: claude-haiku-4-5-20251001
+
+output:
+  format: markdown            # "markdown" or "html"
+  max_items: 20               # max headlines to pass to AI
+  language: en                # "en" or "ja"
