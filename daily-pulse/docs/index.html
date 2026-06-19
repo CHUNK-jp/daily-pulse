@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DailyPulse — Your Personal AI Morning Brief</title>
+  <meta name="description" content="Aggregates HackerNews, RSS, and Reddit. Summarized by local LLM. One command. No cloud." />
+  <meta property="og:title" content="DailyPulse — Your Personal AI Morning Brief" />
+  <meta property="og:description" content="No cloud. No subscription. Just your brief." />
+  <meta name="theme-color" content="#1e2327" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #1e2327;
+      --bg2:      #252b30;
+      --bg3:      #2d343a;
+      --border:   #3a4149;
+      --fg:       #cdd6df;
+      --fg-dim:   #7a8896;
+      --accent:   #4fc3f7;
+      --accent2:  #81c784;
+      --warn:     #ffb74d;
+      --red:      #ef5350;
+      --mono:     "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      --sans:     -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--fg);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.7;
+      min-height: 100vh;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      background: rgba(30,35,39,0.92);
+      backdrop-filter: blur(8px);
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 2rem; height: 52px;
+    }
+    .nav-brand { font-family: var(--mono); font-size: 1rem; color: var(--accent); letter-spacing: 0.03em; }
+    .nav-links { display: flex; gap: 1.5rem; }
+    .nav-links a { color: var(--fg-dim); font-size: 0.875rem; }
+    .nav-links a:hover { color: var(--fg); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 5rem 1.5rem 4rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: "";
+      position: absolute; inset: 0;
+      background: radial-gradient(ellipse 70% 40% at 50% 0%, rgba(79,195,247,0.07) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-emoji { font-size: 3rem; display: block; margin-bottom: 1rem; }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: #fff;
+      margin-bottom: 0.5rem;
+    }
+    .hero-sub {
+      font-size: clamp(1rem, 2.5vw, 1.25rem);
+      color: var(--fg-dim);
+      margin-bottom: 2rem;
+    }
+    .badges { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-bottom: 2.5rem; }
+    .badges img { height: 20px; }
+
+    .btn-group { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: center; }
+    .btn {
+      display: inline-flex; align-items: center; gap: 0.4rem;
+      padding: 0.6rem 1.4rem;
+      border-radius: 6px;
+      font-size: 0.9rem; font-weight: 600;
+      transition: opacity 0.15s, transform 0.15s;
+      cursor: pointer; border: none;
+    }
+    .btn:hover { opacity: 0.85; transform: translateY(-1px); text-decoration: none; }
+    .btn-primary { background: var(--accent); color: #111; }
+    .btn-secondary { background: var(--bg3); color: var(--fg); border: 1px solid var(--border); }
+
+    /* ── Terminal demo ── */
+    .terminal-wrap { max-width: 680px; margin: 3rem auto 0; padding: 0 1rem; }
+    .terminal {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      text-align: left;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    .terminal-bar {
+      background: var(--bg3);
+      padding: 0.6rem 1rem;
+      display: flex; align-items: center; gap: 0.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .dot-r { background: #ef5350; }
+    .dot-y { background: #ffb74d; }
+    .dot-g { background: #81c784; }
+    .terminal-title { flex: 1; text-align: center; font-family: var(--mono); font-size: 0.75rem; color: var(--fg-dim); }
+    .terminal-body { padding: 1.25rem 1.5rem; font-family: var(--mono); font-size: 0.85rem; line-height: 1.8; }
+    .t-prompt { color: var(--accent2); }
+    .t-cmd { color: #fff; }
+    .t-out { color: var(--fg-dim); }
+    .t-hl { color: var(--accent); }
+    .t-grn { color: var(--accent2); }
+    .t-ylw { color: var(--warn); }
+
+    /* ── Sections ── */
+    .container { max-width: 860px; margin: 0 auto; padding: 0 1.5rem; }
+    section { padding: 4rem 0; }
+    section + section { border-top: 1px solid var(--border); }
+
+    h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1.5rem; color: #fff; }
+    h2 .emoji { margin-right: 0.4rem; }
+
+    /* ── Feature grid ── */
+    .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 1rem; }
+    .feature-card {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem;
+    }
+    .feature-card .icon { font-size: 1.5rem; margin-bottom: 0.5rem; }
+    .feature-card h3 { font-size: 0.95rem; font-weight: 600; color: #fff; margin-bottom: 0.3rem; }
+    .feature-card p { font-size: 0.85rem; color: var(--fg-dim); }
+
+    /* ── Code block ── */
+    pre {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.25rem 1.5rem;
+      overflow-x: auto;
+      font-family: var(--mono);
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--fg);
+    }
+    code { font-family: var(--mono); }
+    .comment { color: var(--fg-dim); }
+    .kw { color: var(--accent); }
+
+    /* ── Table ── */
+    table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+    th { background: var(--bg3); color: #fff; text-align: left; padding: 0.6rem 1rem; border: 1px solid var(--border); font-weight: 600; }
+    td { padding: 0.6rem 1rem; border: 1px solid var(--border); color: var(--fg-dim); vertical-align: top; }
+    td code { background: var(--bg3); padding: 2px 6px; border-radius: 4px; color: var(--fg); font-size: 0.82rem; }
+    tr:nth-child(even) td { background: var(--bg2); }
+
+    /* ── How it works diagram ── */
+    .flow {
+      display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;
+      font-family: var(--mono); font-size: 0.85rem;
+      background: #0d1117; border: 1px solid var(--border); border-radius: 8px;
+      padding: 1.5rem;
+    }
+    .flow-node {
+      background: var(--bg3); border: 1px solid var(--border);
+      border-radius: 6px; padding: 0.4rem 0.8rem; white-space: nowrap;
+      color: var(--fg);
+    }
+    .flow-arrow { color: var(--fg-dim); font-size: 1.1rem; }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      text-align: center;
+      padding: 2.5rem 1rem;
+      font-size: 0.85rem;
+      color: var(--fg-dim);
+    }
+    footer a { color: var(--fg-dim); }
+    footer a:hover { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 600px) {
+      nav { padding: 0 1rem; }
+      .nav-links { gap: 1rem; }
+      .flow { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <span class="nav-brand">🌅 daily-pulse</span>
+  <div class="nav-links">
+    <a href="#features">Features</a>
+    <a href="#quickstart">Install</a>
+    <a href="#howto">Usage</a>
+    <a href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">GitHub ↗</a>
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+  <span class="hero-emoji">🌅</span>
+  <h1>DailyPulse</h1>
+  <p class="hero-sub">Your personal AI morning brief — local, private, free.</p>
+
+  <div class="badges">
+    <img src="https://img.shields.io/badge/Python-3.10%2B-3776AB?style=flat&logo=python&logoColor=white" alt="Python" />
+    <img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT" />
+    <img src="https://img.shields.io/badge/Powered%20by-Ollama-black?style=flat" alt="Ollama" />
+    <img src="https://img.shields.io/badge/Cloud-None-lightgrey?style=flat" alt="No Cloud" />
+  </div>
+
+  <div class="btn-group">
+    <a class="btn btn-primary" href="#quickstart">⚡ Get Started</a>
+    <a class="btn btn-secondary" href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+      View on GitHub
+    </a>
+  </div>
+
+  <!-- Terminal demo -->
+  <div class="terminal-wrap">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <span class="terminal-title">bash</span>
+      </div>
+      <div class="terminal-body">
+        <div><span class="t-prompt">$ </span><span class="t-cmd">python3 daily_pulse.py run</span></div>
+        <div class="t-out">🌅 DailyPulse starting...</div>
+        <div class="t-out">  📡 Fetching HackerNews...</div>
+        <div class="t-out">  📡 Fetching The Verge...</div>
+        <div class="t-out">  📡 Fetching r/programming...</div>
+        <div class="t-out">  ✅ Collected 20 items</div>
+        <div class="t-out">  🤖 Summarizing with ollama...</div>
+        <br/>
+        <div><span class="t-hl"># 🌅 DailyPulse — 2026-06-19</span></div>
+        <br/>
+        <div><span class="t-grn">## 📰 Top Stories Today</span></div>
+        <br/>
+        <div class="t-out">### 1. Snap unveils $2,195 AR Glasses</div>
+        <div class="t-out">Snap's new SPECS glasses debut as a standalone AR</div>
+        <div class="t-out">computer, betting on a post-smartphone future...</div>
+        <br/>
+        <div class="t-out">### 2. AI coding agents hit mainstream...</div>
+        <br/>
+        <div><span class="t-ylw">## 🔑 Keywords: AR, AI agents, local LLM</span></div>
+        <br/>
+        <div class="t-grn">✅ Done!</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features -->
+<section id="features">
+  <div class="container">
+    <h2><span class="emoji">✨</span>Features</h2>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <div class="icon">🔒</div>
+        <h3>100% Private</h3>
+        <p>Run with local Ollama — nothing leaves your machine. No accounts, no telemetry.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📡</div>
+        <h3>Multi-Source</h3>
+        <p>HackerNews, any RSS/Atom feed, and Reddit — all in one brief.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🤖</div>
+        <h3>AI Summarized</h3>
+        <p>Powered by Ollama (local) or Claude API. Picks the top 3–5 stories and explains why they matter.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">🌐</div>
+        <h3>EN / JA</h3>
+        <p>Output in English or Japanese. One flag: <code>--lang ja</code>.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">⏰</div>
+        <h3>Automatable</h3>
+        <p>Works with cron, GitHub Actions, launchd — set it and forget it.</p>
+      </div>
+      <div class="feature-card">
+        <div class="icon">📄</div>
+        <h3>Markdown or HTML</h3>
+        <p>Output to stdout, a file, or pipe into your note-taking app.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Quick Start -->
+<section id="quickstart">
+  <div class="container">
+    <h2><span class="emoji">🚀</span>Quick Start</h2>
+    <pre><span class="comment"># 1. Clone</span>
+git clone https://github.com/CHUNK-jp/daily-pulse.git
+cd daily-pulse
+
+<span class="comment"># 2. Install dependencies</span>
+pip install -r requirements.txt
+
+<span class="comment"># 3a. Run with local LLM (free)</span>
+ollama pull llama3.2
+python3 daily_pulse.py run
+
+<span class="comment"># 3b. Or use Claude API</span>
+ANTHROPIC_API_KEY=sk-... python3 daily_pulse.py run --provider claude
+
+<span class="comment"># Save to file</span>
+python3 daily_pulse.py run -o ~/brief.md
+
+<span class="comment"># Japanese output</span>
+python3 daily_pulse.py run --lang ja</pre>
+  </div>
+</section>
+
+<!-- Usage -->
+<section id="howto">
+  <div class="container">
+    <h2><span class="emoji">📖</span>Commands</h2>
+    <table>
+      <thead>
+        <tr><th>Command</th><th>Description</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>run</code></td><td>Fetch all sources and print AI brief</td></tr>
+        <tr><td><code>run -o FILE</code></td><td>Save brief to a file</td></tr>
+        <tr><td><code>run --format html</code></td><td>Output as HTML instead of Markdown</td></tr>
+        <tr><td><code>run --lang ja</code></td><td>Summarize in Japanese</td></tr>
+        <tr><td><code>run --provider claude</code></td><td>Use Claude API instead of Ollama</td></tr>
+        <tr><td><code>init</code></td><td>Create default config at <code>~/.config/daily-pulse/config.yaml</code></td></tr>
+        <tr><td><code>sources</code></td><td>List all configured sources</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- How it works -->
+<section>
+  <div class="container">
+    <h2><span class="emoji">🧠</span>How It Works</h2>
+    <div class="flow">
+      <div class="flow-node">HackerNews API</div>
+      <span class="flow-arrow">┐</span>
+      <br style="display:none"/>
+      <div class="flow-node">RSS Feeds</div>
+      <span class="flow-arrow">┼──►</span>
+      <div class="flow-node">Collect headlines</div>
+      <span class="flow-arrow">──►</span>
+      <div class="flow-node">Ollama / Claude</div>
+      <span class="flow-arrow">──►</span>
+      <div class="flow-node">Markdown Brief</div>
+      <br style="display:none"/>
+      <div class="flow-node">Reddit JSON</div>
+      <span class="flow-arrow">┘</span>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer>
+  <p>
+    Built by <a href="https://github.com/CHUNK-jp" target="_blank">CHUNK-jp</a> ·
+    <a href="https://github.com/CHUNK-jp/daily-pulse" target="_blank">GitHub</a> ·
+    MIT License
+  </p>
+  <p style="margin-top:0.4rem;">No cloud. No subscription. Just your brief.</p>
+  <p style="margin-top:1rem;">
+    ← Back to <a href="https://chunk-jp.github.io/">CHUNK-jp projects</a>
+  </p>
+</footer>
+
+</body>
+</html>
