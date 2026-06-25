@@ -18,6 +18,7 @@
 
   a.nav-link, a.footer-link { color: #71717A; text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: color .15s, background .15s; }
   a.nav-link:hover { color: #FAFAFA; background: #111113; }
+  a.nav-logo:hover { text-decoration: none; color: inherit; }
   .footer-link { font-size: 13px; color: #52525B; padding: 4px 10px; }
   .footer-link:hover { color: #A1A1AA; }
 
@@ -61,7 +62,7 @@
   <nav style="position: sticky; top: 0; z-index: 100;">
     <div style="background: rgba(9,9,11,0.85); border-bottom: 1px solid #18181B; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
       <div style="max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; height: 64px; gap: 40px;">
-        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+        <a class="nav-logo" href="https://chunk-jp.github.io/" style="display: flex; align-items: center; gap: 10px; flex-shrink: 0; text-decoration: none; color: inherit;">
           <div style="width: 32px; height: 32px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
             <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
               <path d="M4 22h14a2 2 0 002-2V7l-5-5H6a2 2 0 00-2 2v4"/>
@@ -70,7 +71,7 @@
             </svg>
           </div>
           <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Daily Pulse</span>
-        </div>
+        </a>
         <div class="nav-links" style="display: flex; align-items: center; gap: 4px; flex: 1;">
           <a class="nav-link" href="#features" style="font-size: 14px;">Features</a>
           <a class="nav-link" href="#how-it-works" style="font-size: 14px;">How it works</a>
