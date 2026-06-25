@@ -32,8 +32,10 @@
 
   section { scroll-margin-top: 64px; }
 
-  .terminal-line { display: flex; align-items: baseline; padding: 3px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; opacity: 0; animation: fade-in-up .25s ease forwards; }
+  .terminal-line { display: flex; align-items: baseline; padding: 3px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; opacity: 0; animation: fade-in-up .25s ease forwards; min-width: 0; }
   .terminal-cursor { padding: 2px 20px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #3B82F6; line-height: 1.6; min-height: 22px; }
+
+  .hero-grid > div { min-width: 0; }
 
   @media (max-width: 640px) {
     .nav-links { display: none !important; }
@@ -51,6 +53,10 @@
     .privacy-padding { padding: 40px 24px !important; }
     h1 { font-size: 38px !important; }
     h2 { font-size: 32px !important; }
+  }
+
+  @media (max-width: 480px) {
+    .terminal-line, .terminal-cursor { padding-left: 14px !important; padding-right: 14px !important; font-size: 10.5px !important; }
   }
 </style>
 </head>
@@ -551,42 +557,46 @@
       return s;
     }
 
+    function clip(style) {
+      return Object.assign({ minWidth: '0', overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis' }, style);
+    }
+
     switch (l.k) {
       case 'blank':
         div.style.height = '8px';
         div.style.padding = '0';
         break;
       case 'prompt':
-        div.appendChild(span(l.text, '#22C55E', { flex: '1' }));
+        div.appendChild(span(l.text, '#22C55E', clip({ flex: '1' })));
         break;
       case 'meta':
-        div.appendChild(span(l.text, '#FAFAFA', { fontWeight: '500', flex: '1' }));
+        div.appendChild(span(l.text, '#FAFAFA', clip({ fontWeight: '500', flex: '1' })));
         break;
       case 'divider':
-        div.appendChild(span('─'.repeat(52), '#2A2A2E', { flex: '1' }));
+        div.appendChild(span('─'.repeat(52), '#2A2A2E', clip({ flex: '1' })));
         break;
       case 'fetch':
         div.style.justifyContent = 'space-between';
-        div.appendChild(span('  →  ' + l.src, '#71717A'));
+        div.appendChild(span('  →  ' + l.src, '#71717A', clip({ flex: '1' })));
         div.appendChild(span('✓  ' + l.count, '#22C55E', { flexShrink: '0', paddingLeft: '16px' }));
         break;
       case 'proc':
-        div.appendChild(span(l.text, '#F59E0B', { flex: '1' }));
+        div.appendChild(span(l.text, '#F59E0B', clip({ flex: '1' })));
         break;
       case 'section':
         div.style.paddingTop = '5px';
-        div.appendChild(span(l.text, '#FAFAFA', { fontWeight: '600', flex: '1' }));
+        div.appendChild(span(l.text, '#FAFAFA', clip({ fontWeight: '600', flex: '1' })));
         break;
       case 'shead':
         div.appendChild(span(l.tag, l.tagColor, { flexShrink: '0', minWidth: '42px' }));
-        div.appendChild(span(l.text, '#E4E4E7', { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '0', flex: '1' }));
+        div.appendChild(span(l.text, '#E4E4E7', clip({ flex: '1' })));
         break;
       case 'sbody':
-        div.appendChild(span(l.text, '#52525B', { flex: '1' }));
+        div.appendChild(span(l.text, '#52525B', clip({ flex: '1' })));
         break;
       case 'success':
         div.style.paddingTop = '5px';
-        div.appendChild(span(l.text, '#22C55E', { flex: '1' }));
+        div.appendChild(span(l.text, '#22C55E', clip({ flex: '1' })));
         break;
     }
     return div;
