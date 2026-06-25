@@ -1,523 +1,622 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DailyPulse — 毎朝のAIブリーフィング</title>
-  <meta name="description" content="HackerNews・RSS・Redditを自動収集し、ローカルLLMで要約。毎朝1コマンドで今日のニュースをまとめて届ける。" />
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Daily Pulse — Your morning brief. No noise. No tracking.</title>
+<meta name="description" content="Daily Pulse collects top stories from Hacker News, RSS feeds, and Reddit — summarizes them with a local LLM — and delivers a clean briefing to your filesystem." />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: #09090B; color: #FAFAFA; font-family: 'Inter', system-ui, -apple-system, sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: rgba(59,130,246,0.25); color: #FAFAFA; }
+  ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #27272A; border-radius: 3px; }
+  @keyframes pulse-dot { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+  @keyframes fade-in-up { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
 
-    :root {
-      --bg: #000000;
-      --bg2: #0d0d0d;
-      --bg3: #141414;
-      --border: #1f1f1f;
-      --border2: #2a2a2a;
-      --text: #e8e8e8;
-      --text-muted: #888;
-      --text-dim: #555;
-      --purple: #7c3aed;
-      --purple-light: #a78bfa;
-      --blue: #60a5fa;
-      --green: #4ade80;
-      --yellow: #facc15;
-      --accent-gradient: linear-gradient(135deg, #7c3aed, #60a5fa);
-    }
+  a.nav-link, a.footer-link { color: #71717A; text-decoration: none; padding: 6px 12px; border-radius: 6px; transition: color .15s, background .15s; }
+  a.nav-link:hover { color: #FAFAFA; background: #111113; }
+  .footer-link { font-size: 13px; color: #52525B; padding: 4px 10px; }
+  .footer-link:hover { color: #A1A1AA; }
 
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
-      line-height: 1.6;
-      min-height: 100vh;
-    }
+  .btn-primary { display: inline-flex; align-items: center; gap: 10px; background: #3B82F6; color: #fff; text-decoration: none; transition: background .15s; }
+  .btn-primary:hover { background: #2563EB; }
+  .btn-ghost { display: inline-flex; align-items: center; gap: 8px; background: #18181B; color: #A1A1AA; border: 1px solid #27272A; text-decoration: none; transition: border-color .15s, color .15s; }
+  .btn-ghost:hover { border-color: #3F3F46; color: #FAFAFA; }
 
-    /* ── NAV ── */
-    nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(0,0,0,0.85);
-      backdrop-filter: blur(12px);
-      border-bottom: 1px solid var(--border);
-      padding: 0 2rem;
-      height: 52px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
+  .feature-card { background: #09090B; padding: 40px 36px; transition: background .15s; }
+  .feature-card:hover { background: #0E0E10; }
 
-    .nav-breadcrumb {
-      font-size: 0.875rem;
-      color: var(--text-muted);
-      display: flex;
-      align-items: center;
-      gap: 0.4rem;
-    }
-    .nav-breadcrumb a { color: var(--text-muted); text-decoration: none; }
-    .nav-breadcrumb a:hover { color: var(--text); }
-    .nav-breadcrumb .sep { color: var(--text-dim); }
-    .nav-breadcrumb .current { color: var(--text); font-weight: 500; }
+  section { scroll-margin-top: 64px; }
 
-    .nav-actions { display: flex; align-items: center; gap: 0.5rem; }
+  .terminal-line { display: flex; align-items: baseline; padding: 3px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 1.6; opacity: 0; animation: fade-in-up .25s ease forwards; }
+  .terminal-cursor { padding: 2px 20px; font-size: 12px; font-family: 'JetBrains Mono', monospace; color: #3B82F6; line-height: 1.6; min-height: 22px; }
 
-    .nav-btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.35rem;
-      padding: 0.35rem 0.75rem;
-      border-radius: 6px;
-      font-size: 0.8rem;
-      text-decoration: none;
-      border: 1px solid var(--border2);
-      color: var(--text-muted);
-      background: transparent;
-      transition: all 0.15s;
-      white-space: nowrap;
-    }
-    .nav-btn:hover { color: var(--text); border-color: #444; background: var(--bg3); }
+  @media (max-width: 640px) {
+    .nav-links { display: none !important; }
+  }
 
-    /* ── HERO ── */
-    .hero {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 5rem 2rem 4rem;
-      text-align: center;
-    }
-
-    .pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 0.4rem 1rem;
-      border-radius: 999px;
-      background: rgba(124,58,237,0.12);
-      border: 1px solid rgba(124,58,237,0.3);
-      font-size: 0.8rem;
-      color: var(--purple-light);
-      margin-bottom: 2rem;
-    }
-    .pill-dot {
-      width: 5px; height: 5px;
-      border-radius: 50%;
-      background: var(--purple-light);
-      display: inline-block;
-    }
-
-    h1 {
-      font-size: clamp(2.4rem, 6vw, 3.8rem);
-      font-weight: 700;
-      line-height: 1.15;
-      letter-spacing: -0.03em;
-      margin-bottom: 1.25rem;
-    }
-    h1 .gradient {
-      background: var(--accent-gradient);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-
-    .hero-sub {
-      font-size: 1.05rem;
-      color: var(--text-muted);
-      max-width: 540px;
-      margin: 0 auto 2.25rem;
-    }
-
-    .hero-actions { display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap; }
-
-    .btn-primary {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.65rem 1.4rem;
-      background: var(--purple);
-      color: #fff;
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      text-decoration: none;
-      transition: background 0.15s, transform 0.1s;
-    }
-    .btn-primary:hover { background: #6d28d9; transform: translateY(-1px); }
-
-    .btn-secondary {
-      display: inline-flex; align-items: center; gap: 0.4rem;
-      padding: 0.65rem 1.4rem;
-      background: var(--bg3);
-      color: var(--text);
-      border: 1px solid var(--border2);
-      border-radius: 8px;
-      font-size: 0.9rem;
-      font-weight: 500;
-      text-decoration: none;
-      transition: background 0.15s, border-color 0.15s;
-    }
-    .btn-secondary:hover { background: #1a1a1a; border-color: #3a3a3a; }
-
-    /* ── TERMINAL ── */
-    .terminal-wrap {
-      max-width: 700px;
-      margin: 3.5rem auto 0;
-      border-radius: 12px;
-      overflow: hidden;
-      border: 1px solid var(--border2);
-      box-shadow: 0 24px 64px rgba(0,0,0,0.6);
-    }
-    .terminal-bar {
-      background: #1a1a1a;
-      padding: 0.6rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      border-bottom: 1px solid var(--border);
-    }
-    .dot { width: 12px; height: 12px; border-radius: 50%; }
-    .dot-red { background: #ff5f57; }
-    .dot-yellow { background: #febc2e; }
-    .dot-green { background: #28c840; }
-    .terminal-title {
-      flex: 1;
-      text-align: center;
-      font-size: 0.78rem;
-      color: var(--text-dim);
-      font-family: "SF Mono", "Fira Code", "Menlo", monospace;
-    }
-    .terminal-body {
-      background: #0a0a0a;
-      padding: 1.25rem 1.5rem;
-      font-family: "SF Mono", "Fira Code", "Menlo", monospace;
-      font-size: 0.82rem;
-      line-height: 1.7;
-      text-align: left;
-    }
-    .t-prompt { color: var(--purple-light); }
-    .t-cmd { color: var(--text); }
-    .t-comment { color: var(--text-dim); }
-    .t-green { color: var(--green); }
-    .t-blue { color: var(--blue); }
-    .t-yellow { color: var(--yellow); }
-
-    /* ── SECTIONS ── */
-    section { max-width: 860px; margin: 0 auto; padding: 4rem 2rem; }
-
-    .section-label {
-      font-size: 0.72rem;
-      font-weight: 700;
-      letter-spacing: 0.12em;
-      text-transform: uppercase;
-      color: var(--purple);
-      margin-bottom: 0.75rem;
-    }
-    .section-title {
-      font-size: clamp(1.6rem, 4vw, 2.2rem);
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 0.75rem;
-    }
-    .section-sub {
-      color: var(--text-muted);
-      max-width: 500px;
-      margin-bottom: 2.5rem;
-      font-size: 0.95rem;
-    }
-
-    /* ── FEATURE CARDS ── */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 1rem;
-    }
-    .card {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1.4rem;
-      transition: border-color 0.15s, background 0.15s;
-    }
-    .card:hover { border-color: var(--border2); background: var(--bg3); }
-    .card-emoji { font-size: 1.6rem; margin-bottom: 0.75rem; display: block; }
-    .card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 0.4rem; }
-    .card p { font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; }
-
-    /* ── HOW IT WORKS ── */
-    .flow {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      flex-wrap: wrap;
-      margin-top: 1.5rem;
-    }
-    .flow-step {
-      padding: 0.5rem 1rem;
-      border: 1px solid var(--border2);
-      border-radius: 8px;
-      font-size: 0.85rem;
-      background: var(--bg2);
-      white-space: nowrap;
-    }
-    .flow-step.accent {
-      border-color: rgba(124,58,237,0.4);
-      background: rgba(124,58,237,0.1);
-      color: var(--purple-light);
-    }
-    .flow-arrow { color: var(--text-dim); font-size: 1rem; }
-
-    /* ── QUICK START ── */
-    .steps { display: flex; flex-direction: column; gap: 1.25rem; }
-    .step { display: flex; gap: 1.25rem; align-items: flex-start; }
-    .step-num {
-      width: 28px; height: 28px;
-      border-radius: 50%;
-      background: rgba(124,58,237,0.15);
-      border: 1px solid rgba(124,58,237,0.3);
-      color: var(--purple-light);
-      font-size: 0.78rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-    .step-body h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
-    .step-body p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.5rem; }
-    pre {
-      background: var(--bg2);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
-      font-family: "SF Mono", "Fira Code", "Menlo", monospace;
-      font-size: 0.8rem;
-      overflow-x: auto;
-      color: var(--text);
-    }
-    code { font-family: "SF Mono", "Fira Code", "Menlo", monospace; font-size: 0.85em; }
-
-    /* ── DIVIDER ── */
-    hr { border: none; border-top: 1px solid var(--border); }
-
-    /* ── FOOTER ── */
-    footer {
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 2rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 1rem;
-    }
-    .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; }
-    .footer-links a {
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      text-decoration: none;
-      transition: color 0.15s;
-    }
-    .footer-links a:hover { color: var(--text-muted); }
-    .footer-copy { font-size: 0.78rem; color: var(--text-dim); }
-  </style>
+  @media (max-width: 860px) {
+    .hero-grid { grid-template-columns: 1fr !important; }
+    .stats-grid { grid-template-columns: 1fr !important; }
+    .stats-grid > div { border-right: none !important; border-bottom: 1px solid #18181B; }
+    .features-grid { grid-template-columns: 1fr !important; }
+    .flow-grid { grid-template-columns: 1fr !important; }
+    .flow-arrow { transform: rotate(90deg); }
+    .quickstart-grid { grid-template-columns: 1fr !important; }
+    .privacy-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+    .privacy-padding { padding: 40px 24px !important; }
+    h1 { font-size: 38px !important; }
+    h2 { font-size: 32px !important; }
+  }
+</style>
 </head>
 <body>
 
-  <!-- NAV -->
-  <nav>
-    <div class="nav-breadcrumb">
-      <a href="https://chunk-jp.github.io/">CHUNK-jp</a>
-      <span class="sep">/</span>
-      <span class="current">daily-pulse</span>
-    </div>
-    <div class="nav-actions">
-      <a class="nav-btn" href="https://chunk-jp.github.io/">← CHUNK-jp Portal</a>
-      <a class="nav-btn" href="https://github.com/CHUNK-jp/daily-pulse">⎆ GitHub</a>
+<div style="min-height: 100vh; background: #09090B; color: #FAFAFA; font-family: 'Inter', system-ui, sans-serif;">
+
+  <!-- ── NAV ── -->
+  <nav style="position: sticky; top: 0; z-index: 100;">
+    <div style="background: rgba(9,9,11,0.85); border-bottom: 1px solid #18181B; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);">
+      <div style="max-width: 1100px; margin: 0 auto; padding: 0 24px; display: flex; align-items: center; height: 64px; gap: 40px;">
+        <div style="display: flex; align-items: center; gap: 10px; flex-shrink: 0;">
+          <div style="width: 32px; height: 32px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 8px; display: flex; align-items: center; justify-content: center;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
+              <path d="M4 22h14a2 2 0 002-2V7l-5-5H6a2 2 0 00-2 2v4"/>
+              <path d="M14 2v5h5"/>
+              <path d="M2 15s1-1 2-1 2 2 3 2 2-1 2-1"/>
+            </svg>
+          </div>
+          <span style="font-size: 15px; font-weight: 600; letter-spacing: -0.01em;">Daily Pulse</span>
+        </div>
+        <div class="nav-links" style="display: flex; align-items: center; gap: 4px; flex: 1;">
+          <a class="nav-link" href="#features" style="font-size: 14px;">Features</a>
+          <a class="nav-link" href="#how-it-works" style="font-size: 14px;">How it works</a>
+          <a class="nav-link" href="#setup" style="font-size: 14px;">Setup</a>
+          <a class="nav-link" href="#privacy" style="font-size: 14px;">Privacy</a>
+        </div>
+        <a class="btn-primary" href="https://github.com/CHUNK-jp/daily-pulse" style="font-size: 13px; font-weight: 500; padding: 8px 18px; border-radius: 8px; flex-shrink: 0; letter-spacing: -0.01em;">
+          <svg viewBox="0 0 16 16" fill="currentColor" width="13" height="13"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+          Get it on GitHub
+        </a>
+      </div>
     </div>
   </nav>
 
-  <!-- HERO -->
-  <div class="hero">
-    <div class="pill">
-      <span class="pill-dot"></span>
-      🌅 毎朝1コマンド · ローカルLLM · クラウド不使用
-    </div>
+  <!-- ── HERO ── -->
+  <section style="position: relative; padding: 80px 24px 88px; overflow: hidden;">
+    <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 60% 50% at 20% 50%, rgba(59,130,246,0.07) 0%, transparent 70%); pointer-events: none;"></div>
+    <div style="position: absolute; inset: 0; background-image: linear-gradient(rgba(255,255,255,0.014) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.014) 1px, transparent 1px); background-size: 44px 44px; pointer-events: none; mask-image: radial-gradient(ellipse 60% 80% at 20% 50%, black 0%, transparent 70%); -webkit-mask-image: radial-gradient(ellipse 60% 80% at 20% 50%, black 0%, transparent 70%);"></div>
 
-    <h1>
-      今日のニュース、<br>
-      <span class="gradient">AIがまとめてくれる。</span>
-    </h1>
+    <div class="hero-grid" style="max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 5fr 7fr; gap: 72px; align-items: center; position: relative; animation: fade-in-up 0.6s ease both;">
 
-    <p class="hero-sub">
-      HackerNews・RSS・Redditを自動収集し、<br>
-      ローカルLLMで要約。朝のルーティンに。
-    </p>
+      <!-- LEFT: copy -->
+      <div>
+        <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.18); border-radius: 100px; padding: 6px 16px; margin-bottom: 32px;">
+          <div style="width: 6px; height: 6px; border-radius: 50%; background: #3B82F6; animation: pulse-dot 2.4s ease-in-out infinite;"></div>
+          <span style="font-size: 13px; color: #60A5FA; font-weight: 500; letter-spacing: -0.01em; font-family: 'JetBrains Mono', monospace;">CLI tool · local LLM · zero tracking</span>
+        </div>
 
-    <div class="hero-actions">
-      <a class="btn-primary" href="https://github.com/CHUNK-jp/daily-pulse">GitHub で見る</a>
-      <a class="btn-secondary" href="#quickstart">クイックスタート →</a>
-    </div>
+        <h1 style="font-size: 52px; font-weight: 700; line-height: 1.05; letter-spacing: -0.035em; margin-bottom: 22px; text-wrap: balance;">
+          Your morning brief.<br>No noise.<br><span style="color: #3B82F6;">No tracking.</span>
+        </h1>
 
-    <!-- Terminal Mockup -->
-    <div class="terminal-wrap">
-      <div class="terminal-bar">
-        <span class="dot dot-red"></span>
-        <span class="dot dot-yellow"></span>
-        <span class="dot dot-green"></span>
-        <span class="terminal-title">daily-pulse — zsh</span>
+        <p style="font-size: 17px; color: #71717A; line-height: 1.7; margin-bottom: 40px; text-wrap: pretty;">
+          Daily Pulse collects top stories from Hacker News, RSS feeds, and Reddit — summarizes them with a local LLM — and delivers a clean briefing to your filesystem. Your news. Your machine. Nobody else's business.
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; align-items: flex-start;">
+          <a class="btn-primary" href="https://github.com/CHUNK-jp/daily-pulse" style="font-size: 15px; font-weight: 600; padding: 13px 26px; border-radius: 10px; letter-spacing: -0.01em;">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="15" height="15"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            Get it on GitHub
+          </a>
+          <div style="display: inline-flex; align-items: center; gap: 10px; background: #111113; border: 1px solid #27272A; border-radius: 7px; padding: 8px 16px;">
+            <span style="font-size: 13px; color: #52525B; font-family: 'JetBrains Mono', monospace;">$</span>
+            <span style="font-size: 13px; color: #A1A1AA; font-family: 'JetBrains Mono', monospace;">pip install -r requirements.txt</span>
+          </div>
+        </div>
+        <p style="font-size: 12px; color: #3F3F46; margin-top: 20px;">Python 3.10+ · Ollama or Claude API · Free &amp; open source · MIT</p>
       </div>
-      <div class="terminal-body">
-        <span class="t-comment"># ローカルLLMで要約（無料・完全プライベート）</span><br>
-        <span class="t-prompt">❯</span> <span class="t-cmd">python3 daily_pulse.py run</span><br>
-        <br>
-        <span class="t-green">✓ HackerNews</span> <span class="t-comment">10 headlines fetched</span><br>
-        <span class="t-green">✓ RSS (The Verge, TechCrunch)</span> <span class="t-comment">fetched</span><br>
-        <span class="t-green">✓ Reddit (r/programming)</span> <span class="t-comment">5 posts fetched</span><br>
-        <span class="t-blue">⠿ Summarizing with llama3.2...</span><br>
-        <br>
-        <span class="t-yellow">## 🌅 DailyPulse — 2026-06-19</span><br>
-        <br>
-        <span class="t-comment">### Top Stories</span><br>
-        <span class="t-cmd">- New Rust-based terminal emulator hits 1M downloads</span><br>
-        <span class="t-cmd">- OpenAI releases GPT-5 mini with 128k context</span><br>
-        <span class="t-comment">  ...</span><br>
-        <br>
-        <span class="t-prompt">❯</span> <span class="t-cmd">python3 daily_pulse.py run --lang ja -o ~/brief.md</span><br>
-        <span class="t-green">✓ Saved to ~/brief.md</span>
+
+      <!-- RIGHT: terminal mockup -->
+      <div style="position: relative;">
+        <div style="position: absolute; inset: -24px; background: radial-gradient(ellipse 70% 60% at 50% 50%, rgba(59,130,246,0.06) 0%, transparent 70%); pointer-events: none; border-radius: 20px;"></div>
+        <div style="position: relative; background: #0C0C0F; border: 1px solid #27272A; border-radius: 12px; overflow: hidden; box-shadow: 0 32px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);">
+          <!-- title bar -->
+          <div style="background: #161619; padding: 11px 16px; display: flex; align-items: center; gap: 7px; border-bottom: 1px solid #27272A;">
+            <div style="width: 11px; height: 11px; background: #3F3F46; border-radius: 50%;"></div>
+            <div style="width: 11px; height: 11px; background: #3F3F46; border-radius: 50%;"></div>
+            <div style="width: 11px; height: 11px; background: #3F3F46; border-radius: 50%;"></div>
+            <div style="flex: 1; text-align: center; font-size: 11px; color: #52525B; font-family: 'JetBrains Mono', monospace; letter-spacing: 0.01em;">daily_pulse.py — zsh</div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <div style="width: 6px; height: 6px; background: #3B82F6; border-radius: 50%; animation: pulse-dot 2s infinite;"></div>
+              <span style="font-size: 11px; color: #3B82F6; font-family: 'JetBrains Mono', monospace;">running</span>
+            </div>
+          </div>
+          <!-- terminal body -->
+          <div id="term-body" style="padding: 12px 0; min-height: 308px;">
+            <div id="term-lines"></div>
+            <div id="term-cursor" class="terminal-cursor">▋</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ── STATS STRIP ── -->
+  <div style="border-top: 1px solid #18181B; border-bottom: 1px solid #18181B; background: #0C0C0E;">
+    <div class="stats-grid" style="max-width: 1100px; margin: 0 auto; padding: 0 24px; display: grid; grid-template-columns: repeat(3, 1fr);">
+      <div style="padding: 44px 40px; text-align: center; border-right: 1px solid #18181B;">
+        <div style="font-size: 48px; font-weight: 700; letter-spacing: -0.04em; color: #FAFAFA; font-family: 'JetBrains Mono', monospace;">5+</div>
+        <div style="font-size: 14px; color: #71717A; margin-top: 8px;">News sources supported</div>
+      </div>
+      <div style="padding: 44px 40px; text-align: center; border-right: 1px solid #18181B;">
+        <div style="font-size: 48px; font-weight: 700; letter-spacing: -0.04em; color: #FAFAFA; font-family: 'JetBrains Mono', monospace;">~2 min</div>
+        <div style="font-size: 14px; color: #71717A; margin-top: 8px;">From clone to first brief</div>
+      </div>
+      <div style="padding: 44px 40px; text-align: center;">
+        <div style="font-size: 48px; font-weight: 700; letter-spacing: -0.04em; color: #FAFAFA; font-family: 'JetBrains Mono', monospace;">0 bytes</div>
+        <div style="font-size: 14px; color: #71717A; margin-top: 8px;">Sent to external servers (by default)</div>
       </div>
     </div>
   </div>
 
-  <!-- FEATURES -->
-  <section>
-    <div class="section-label">FEATURES</div>
-    <h2 class="section-title">これだけで十分。</h2>
-    <p class="section-sub">必要なものだけ。余計なもは一切なし。</p>
+  <!-- ── FEATURES ── -->
+  <section id="features" style="padding: 120px 24px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 72px;">
+        <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;">Features</div>
+        <h2 style="font-size: 48px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 16px; text-wrap: balance;">Everything you need.<br>Nothing you don't.</h2>
+        <p style="font-size: 18px; color: #71717A; max-width: 440px; margin: 0 auto; line-height: 1.6;">Built for one job — a calm, informed morning — without the noise or the surveillance.</p>
+      </div>
 
-    <div class="cards">
-      <div class="card">
-        <span class="card-emoji">📡</span>
-        <h3>複数ソースを自動収集</h3>
-        <p>HackerNews・RSS・Redditを一括取得。設定ファイルで自由にカスタマイズ可能。</p>
-      </div>
-      <div class="card">
-        <span class="card-emoji">🧠</span>
-        <h3>ローカルLLMで要約</h3>
-        <p>Ollamaを使えばすべてがローカルで完結。APIキー不要、課金なし、トラッキングなし。</p>
-      </div>
-      <div class="card">
-        <span class="card-emoji">🌐</span>
-        <h3>日本語出力対応</h3>
-        <p><code>--lang ja</code> を付けるだけで日本語のブリーフを生成。英語にも対応。</p>
-      </div>
-      <div class="card">
-        <span class="card-emoji">📄</span>
-        <h3>Markdown / HTML 出力</h3>
-        <p>ファイルへの保存、HTMLレポート出力にも対応。cronで毎朝自動実行も簡単。</p>
-      </div>
-      <div class="card">
-        <span class="card-emoji">☁️</span>
-        <h3>Claude APIにも対応</h3>
-        <p><code>--provider claude</code> でAnthropicのAPIに切り替え。モデルも設定ファイルで変更可。</p>
-      </div>
-      <div class="card">
-        <span class="card-emoji">⚙️</span>
-        <h3>YAMLで柔軟設定</h3>
-        <p>ソース・AI・出力形式をすべてYAMLで管理。<code>init</code> コマンドで即セットc��ップ。</p>
+      <div class="features-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: #18181B; border-radius: 16px; overflow: hidden; border: 1px solid #18181B;">
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M3 6h2M7 6h12M3 11h2M7 11h12M3 16h2M7 16h8"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Multi-source collection</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">Pulls from Hacker News API, any RSS/Atom feed, and Reddit — all configured in a single YAML file. Add or remove sources any time.</p>
+          <div style="display: flex; gap: 6px; margin-top: 16px; flex-wrap: wrap;">
+            <span style="font-size: 11px; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.2); color: #F59E0B; border-radius: 4px; padding: 3px 8px; font-family: 'JetBrains Mono', monospace; font-weight: 600;">HN</span>
+            <span style="font-size: 11px; background: rgba(34,197,94,0.1); border: 1px solid rgba(34,197,94,0.2); color: #22C55E; border-radius: 4px; padding: 3px 8px; font-family: 'JetBrains Mono', monospace; font-weight: 600;">RSS</span>
+            <span style="font-size: 11px; background: rgba(255,107,53,0.1); border: 1px solid rgba(255,107,53,0.2); color: #FF6B35; border-radius: 4px; padding: 3px 8px; font-family: 'JetBrains Mono', monospace; font-weight: 600;">Reddit</span>
+          </div>
+        </div>
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><rect x="3" y="3" width="16" height="16" rx="2"/><path d="M7 8h2M7 12h8M7 16h5"/><circle cx="15" cy="8" r="1.5" fill="rgba(59,130,246,0.4)" stroke="#3B82F6"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Local LLM summarization</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">Runs summaries through Ollama or llama.cpp — fully offline. Pick any model you have: llama3, mistral, gemma, phi-3, and more.</p>
+        </div>
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M11 3a8 8 0 100 16A8 8 0 0011 3z"/><path d="M11 8v3l2 2"/><path d="M7 2l-2 2 2 2M15 2l2 2-2 2"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Optional Claude API</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">Want frontier-quality summaries? Switch to Claude with a single config line. Local by default — cloud only when you explicitly choose it.</p>
+        </div>
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M14 2H6a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8Z"/><polyline points="14 2 14 8 20 8"/><path d="M8 13h6M8 17h4"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Markdown &amp; HTML output</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">Outputs a clean, dated brief — Markdown or styled HTML — saved to any path you configure. Works with Obsidian, email, or any reader.</p>
+        </div>
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><line x1="4" y1="6" x2="18" y2="6"/><line x1="4" y1="12" x2="12" y2="12"/><line x1="4" y1="18" x2="16" y2="18"/><polyline points="15 9 18 12 15 15"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">YAML configuration</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">Everything in one <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 13px;">config.yaml</span>. Sources, model, output path, story count. Version-control friendly and human-readable.</p>
+        </div>
+
+        <div class="feature-card">
+          <div style="width: 44px; height: 44px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.12); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 20px;">
+            <svg viewBox="0 0 22 22" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M11 2L2 7v5c0 5.25 4 9.74 9 10.93 5-1.19 9-5.68 9-10.93V7L11 2Z"/><path d="M8 11l2 2 4-4"/></svg>
+          </div>
+          <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">100% private by default</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.7;">No accounts. No telemetry. No data leaving your machine unless you opt into Claude. Open source — read every line before you trust it.</p>
+        </div>
+
       </div>
     </div>
   </section>
 
-  <hr />
+  <!-- ── HOW IT WORKS ── -->
+  <section id="how-it-works" style="padding: 0 24px 120px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 72px;">
+        <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;">How it works</div>
+        <h2 style="font-size: 48px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 16px;">Collect. Summarize. Read.</h2>
+        <p style="font-size: 18px; color: #71717A;">Three steps. One command. Your brief, waiting every morning.</p>
+      </div>
 
-  <!-- HOW IT WORKS -->
-  <section>
-    <div class="section-label">HOW IT WORKS</div>
-    <h2 class="section-title">仕組みはシンプル。</h2>
-    <p class="section-sub">3ステップで今日のブリーフが完成します。</p>
+      <div class="flow-grid" style="display: grid; grid-template-columns: 1fr auto 1fr auto 1fr; align-items: center; gap: 0;">
 
-    <div class="flow">
-      <div class="flow-step">HackerNews API</div>
-      <div class="flow-arrow">+</div>
-      <div class="flow-step">RSS / Atom</div>
-      <div class="flow-arrow">+</div>
-      <div class="flow-step">Reddit JSON</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step accent">ローカルLLM / Claude</div>
-      <div class="flow-arrow">→</div>
-      <div class="flow-step">Markdown Brief</div>
+        <!-- Step 1 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; padding: 36px 32px;">
+          <div style="font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;">01 — Collect</div>
+          <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.02em;">Sources</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.65; margin-bottom: 20px;">Fetches today's top items from every source in your config file.</p>
+          <div style="display: flex; flex-direction: column; gap: 9px;">
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 18px; background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.25); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: #F59E0B; flex-shrink: 0;">HN</span>
+              <span style="font-size: 13px; color: #A1A1AA;">Hacker News API</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 18px; background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: #22C55E; flex-shrink: 0;">RSS</span>
+              <span style="font-size: 13px; color: #A1A1AA;">Any RSS / Atom feed</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 9px;">
+              <span style="display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 18px; background: rgba(255,107,53,0.12); border: 1px solid rgba(255,107,53,0.25); border-radius: 3px; font-family: 'JetBrains Mono', monospace; font-size: 9px; font-weight: 700; color: #FF6B35; flex-shrink: 0;">r/</span>
+              <span style="font-size: 13px; color: #A1A1AA;">Reddit subreddits</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-arrow" style="padding: 0 20px; display: flex; align-items: center; justify-content: center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; padding: 36px 32px;">
+          <div style="font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;">02 — Summarize</div>
+          <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.02em;">Local LLM</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.65; margin-bottom: 20px;">Stories are summarized by your local model. No data leaves your machine.</p>
+          <div style="display: flex; flex-direction: column; gap: 9px;">
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 13px;">
+              <div style="width: 6px; height: 6px; background: #22C55E; border-radius: 50%; flex-shrink: 0;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A1A1AA;">Ollama</span>
+              <span style="color: #52525B;">— default</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 13px;">
+              <div style="width: 6px; height: 6px; background: #22C55E; border-radius: 50%; flex-shrink: 0;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A1A1AA;">llama.cpp</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 9px; font-size: 13px;">
+              <div style="width: 6px; height: 6px; background: #3B82F6; border-radius: 50%; flex-shrink: 0;"></div>
+              <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #71717A;">Claude API</span>
+              <span style="color: #52525B;">— optional</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="flow-arrow" style="padding: 0 20px; display: flex; align-items: center; justify-content: center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="22" height="22"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+        </div>
+
+        <!-- Step 3 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; padding: 36px 32px;">
+          <div style="font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;">03 — Deliver</div>
+          <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 12px; letter-spacing: -0.02em;">Your Brief</h3>
+          <p style="font-size: 14px; color: #71717A; line-height: 1.65; margin-bottom: 20px;">A clean, dated brief on your filesystem. No app to open. Just a file.</p>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #A1A1AA;">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#52525B" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6Z"/><path d="M9 2v4h4"/></svg>
+              <span id="brief-md-name">today.md</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #71717A;">
+              <svg viewBox="0 0 16 16" fill="none" stroke="#3F3F46" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><path d="M9 2H4a1 1 0 00-1 1v10a1 1 0 001 1h8a1 1 0 001-1V6Z"/><path d="M9 2v4h4"/></svg>
+              <span id="brief-html-name">today.html</span>
+            </div>
+            <div style="font-size: 12px; color: #3F3F46; margin-top: 4px; font-family: 'JetBrains Mono', monospace;">→ ~/.daily_pulse/</div>
+          </div>
+        </div>
+
+      </div>
     </div>
   </section>
 
-  <hr />
-
-  <!-- QUICK START -->
-  <section id="quickstart">
-    <div class="section-label">QUICK START</div>
-    <h2 class="section-title">すぐ使える。</h2>
-    <p class="section-sub">5分以内に動きます。</p>
-
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-body">
-          <h4>リポジトリをクローン</h4>
-          <pre>git clone https://github.com/CHUNK-jp/daily-pulse.git
-cd daily-pulse</pre>
-        </div>
+  <!-- ── QUICK START ── -->
+  <section id="setup" style="padding: 0 24px 120px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 72px;">
+        <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;">Quick start</div>
+        <h2 style="font-size: 48px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 16px;">Up in under 2 minutes.</h2>
+        <p style="font-size: 18px; color: #71717A;">Three commands. One config. One brief a day.</p>
       </div>
 
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-body">
-          <h4>依存ライブラリをインストール</h4>
-          <pre>pip install -r requirements.txt</pre>
+      <div class="quickstart-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+
+        <!-- Step 1 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; overflow: hidden;">
+          <div style="padding: 28px 28px 20px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: #3B82F6; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 14px; font-weight: 700; color: #fff; box-shadow: 0 0 0 6px rgba(59,130,246,0.1);">1</div>
+            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em;">Clone &amp; install</h3>
+            <p style="font-size: 13px; color: #71717A; line-height: 1.65;">Requires Python 3.10+ and Ollama running locally.</p>
+          </div>
+          <div style="background: #0C0C0F; border-top: 1px solid #27272A; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 2;">
+            <div><span style="color: #52525B;">$</span> <span style="color: #A1A1AA;">git clone https://github.com/CHUNK-jp/daily-pulse.git</span></div>
+            <div><span style="color: #52525B;">$</span> <span style="color: #A1A1AA;">cd daily-pulse</span></div>
+            <div><span style="color: #52525B;">$</span> <span style="color: #A1A1AA;">pip install -r requirements.txt</span></div>
+          </div>
         </div>
-      </div>
 
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-body">
-          <h4>設定ファイルを作成</h4>
-          <pre>python3 daily_pulse.py init</pre>
-          <p>または <code>config.example.yaml</code> を <code>~/.config/daily-pulse/config.yaml</code> にコピーして編集。</p>
+        <!-- Step 2 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; overflow: hidden;">
+          <div style="padding: 28px 28px 20px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 14px; font-weight: 700; color: #60A5FA;">2</div>
+            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em;">Configure</h3>
+            <p style="font-size: 13px; color: #71717A; line-height: 1.65;">Edit <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 12px;">config.yaml</span> to choose your sources and model.</p>
+          </div>
+          <div style="background: #0C0C0F; border-top: 1px solid #27272A; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 2;">
+            <div style="color: #3F3F46;"># config.yaml</div>
+            <div><span style="color: #71717A;">sources:</span></div>
+            <div style="padding-left: 14px;"><span style="color: #71717A;">hackernews: </span><span style="color: #22C55E;">true</span></div>
+            <div style="padding-left: 14px;"><span style="color: #71717A;">reddit: </span><span style="color: #60A5FA;">[technology]</span></div>
+            <div><span style="color: #71717A;">llm:</span></div>
+            <div style="padding-left: 14px;"><span style="color: #71717A;">backend: </span><span style="color: #22C55E;">ollama</span></div>
+            <div style="padding-left: 14px;"><span style="color: #71717A;">model: </span><span style="color: #F59E0B;">llama3:8b</span></div>
+          </div>
         </div>
-      </div>
 
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-body">
-          <h4>Ollamaをセットc��ップ（ローカルLLM使用時）</h4>
-          <pre>ollama pull llama3.2</pre>
+        <!-- Step 3 -->
+        <div style="background: #111113; border: 1px solid #1E1E23; border-radius: 14px; overflow: hidden;">
+          <div style="padding: 28px 28px 20px;">
+            <div style="width: 32px; height: 32px; border-radius: 50%; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.3); display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 14px; font-weight: 700; color: #60A5FA;">3</div>
+            <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.01em;">Run</h3>
+            <p style="font-size: 13px; color: #71717A; line-height: 1.65;">Your brief is ready in seconds. Add it to a cron job for every morning.</p>
+          </div>
+          <div style="background: #0C0C0F; border-top: 1px solid #27272A; padding: 16px 20px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 2;">
+            <div><span style="color: #52525B;">$</span> <span style="color: #22C55E;">python3 daily_pulse.py run</span></div>
+            <div style="color: #3F3F46; padding-top: 4px;"># or schedule it:</div>
+            <div><span style="color: #52525B;">$</span> <span style="color: #A1A1AA;">crontab -e</span></div>
+            <div style="color: #3F3F46;">0 7 * * * python3 daily_pulse.py run</div>
+          </div>
         </div>
+
       </div>
+    </div>
+  </section>
 
-      <div class="step">
-        <div class="step-num">5</div>
-        <div class="step-body">
-          <h4>実行！</h4>
-          <pre># ターミナルに表示
-python3 daily_pulse.py run
+  <!-- ── PRIVACY ── -->
+  <section id="privacy" style="padding: 0 24px 120px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="background: #0E0E10; border: 1px solid #18181B; border-radius: 20px; overflow: hidden;">
+        <div class="privacy-grid privacy-padding" style="padding: 64px; display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; border-bottom: 1px solid #18181B;">
 
-# 日本語でファイルに保存
-python3 daily_pulse.py run --lang ja -o ~/brief.md
+          <!-- Left: copy -->
+          <div>
+            <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;">100% local</div>
+            <h2 style="font-size: 36px; font-weight: 700; letter-spacing: -0.025em; line-height: 1.15; margin-bottom: 20px;">Your morning read is nobody else's business.</h2>
+            <p style="font-size: 15px; color: #71717A; line-height: 1.75; margin-bottom: 24px;">Daily Pulse runs entirely on your machine. Stories are fetched directly from public APIs, summarized locally, and saved to your filesystem. No server ever sees your config or your briefings.</p>
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #A1A1AA;">
+                <svg viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 4L6 11 3 8"/></svg>
+                No outbound connections to any third-party service
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #A1A1AA;">
+                <svg viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 4L6 11 3 8"/></svg>
+                Briefings stored only in your local filesystem
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #A1A1AA;">
+                <svg viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 4L6 11 3 8"/></svg>
+                No account, no registration, no telemetry
+              </div>
+              <div style="display: flex; align-items: center; gap: 10px; font-size: 14px; color: #A1A1AA;">
+                <svg viewBox="0 0 16 16" fill="none" stroke="#22C55E" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M13 4L6 11 3 8"/></svg>
+                Open source — read every line before you run it
+              </div>
+            </div>
+          </div>
 
-# Claude APIを使用
-ANTHROPIC_API_KEY=sk-... python3 daily_pulse.py run --provider claude</pre>
+          <!-- Right: config snippet -->
+          <div style="background: #09090B; border: 1px solid #27272A; border-radius: 12px; overflow: hidden;">
+            <div style="background: #161619; padding: 10px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #27272A;">
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #52525B;">config.yaml</span>
+              <span style="font-size: 11px; font-family: 'JetBrains Mono', monospace; color: #3B82F6;">local only</span>
+            </div>
+            <div style="padding: 20px 24px; font-family: 'JetBrains Mono', monospace; font-size: 12px; line-height: 2;">
+              <div style="color: #3F3F46;"># stays entirely on your machine</div>
+              <div style="height: 6px;"></div>
+              <div><span style="color: #A1A1AA;">sources:</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">hackernews: </span><span style="color: #22C55E;">true</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">rss:</span></div>
+              <div style="padding-left: 32px;"><span style="color: #71717A;">- </span><span style="color: #60A5FA;">https://hnrss.org/frontpage</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">reddit: </span><span style="color: #60A5FA;">[technology, programming]</span></div>
+              <div style="height: 6px;"></div>
+              <div><span style="color: #A1A1AA;">llm:</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">backend: </span><span style="color: #22C55E;">ollama</span><span style="color: #3F3F46;">   # local, default</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">model: </span><span style="color: #F59E0B;">llama3:8b</span></div>
+              <div style="padding-left: 16px; color: #3F3F46;"># backend: claude  # optional</div>
+              <div style="height: 6px;"></div>
+              <div><span style="color: #A1A1AA;">output:</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">format: </span><span style="color: #60A5FA;">markdown</span></div>
+              <div style="padding-left: 16px;"><span style="color: #71717A;">path: </span><span style="color: #60A5FA;">~/.daily_pulse/</span></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Bottom: run command -->
+        <div style="padding: 32px 64px; display: flex; align-items: center; gap: 24px; flex-wrap: wrap;">
+          <div style="flex: 1; min-width: 280px;">
+            <div style="font-size: 14px; font-weight: 500; margin-bottom: 4px; letter-spacing: -0.01em;">One command, every morning</div>
+            <div style="font-size: 13px; color: #71717A;">Or schedule it with cron — and forget it's even running.</div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 10px; background: #09090B; border: 1px solid #27272A; border-radius: 8px; padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 13px; flex-shrink: 0;">
+            <span style="color: #52525B;">$</span>
+            <span style="color: #22C55E;">python3 daily_pulse.py run</span>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <hr />
-
-  <!-- FOOTER -->
-  <footer>
-    <div class="footer-links">
-      <a href="https://github.com/CHUNK-jp/daily-pulse">GitHub</a>
-      <a href="https://chunk-jp.github.io/">CHUNK-jp Portal</a>
-      <a href="https://github.com/CHUNK-jp/daily-pulse/blob/main/LICENSE">MIT License</a>
+  <!-- ── CTA ── -->
+  <section id="github" style="padding: 0 24px 120px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="text-align: center; padding: 80px 48px; background: #111113; border: 1px solid #1E1E23; border-radius: 20px; position: relative; overflow: hidden;">
+        <div style="position: absolute; inset: 0; background: radial-gradient(ellipse 50% 60% at 50% 0%, rgba(59,130,246,0.07) 0%, transparent 70%); pointer-events: none;"></div>
+        <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 1px; height: 80px; background: linear-gradient(to bottom, #3B82F6, transparent);"></div>
+        <div style="position: relative;">
+          <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px; font-family: 'JetBrains Mono', monospace;">$ python3 daily_pulse.py run</div>
+          <h2 style="font-size: 52px; font-weight: 700; letter-spacing: -0.03em; margin-bottom: 16px; text-wrap: balance;">Start your morning<br>with signal, not noise.</h2>
+          <p style="font-size: 18px; color: #71717A; margin-bottom: 44px; line-height: 1.6; max-width: 420px; margin-left: auto; margin-right: auto;">Daily Pulse is free, open source, and runs entirely on your machine. Yours forever.</p>
+          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px;">
+            <a class="btn-primary" href="https://github.com/CHUNK-jp/daily-pulse" style="font-size: 16px; font-weight: 600; padding: 16px 32px; border-radius: 12px; letter-spacing: -0.01em;">
+              <svg viewBox="0 0 16 16" fill="currentColor" width="17" height="17"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+              Get it on GitHub
+            </a>
+            <a class="btn-ghost" href="#setup" style="font-size: 16px; font-weight: 500; padding: 16px 28px; border-radius: 12px;">View setup guide</a>
+          </div>
+          <p style="font-size: 13px; color: #52525B;">Python 3.10+ · Ollama or Claude API · No account · MIT License</p>
+        </div>
+      </div>
     </div>
-    <div class="footer-copy">Built by CHUNK-jp · No cloud. No subscription. Just your brief.</div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer style="border-top: 1px solid #18181B; padding: 40px 24px;">
+    <div style="max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 24px;">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <div style="width: 28px; height: 28px; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.18); border-radius: 6px; display: flex; align-items: center; justify-content: center;">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="14" height="14"><path d="M4 22h14a2 2 0 002-2V7l-5-5H6a2 2 0 00-2 2v4"/><path d="M14 2v5h5"/><path d="M2 15s1-1 2-1 2 2 3 2 2-1 2-1"/></svg>
+        </div>
+        <span style="font-size: 14px; font-weight: 600;">Daily Pulse</span>
+        <span style="font-size: 13px; color: #3F3F46;">Part of the Common Tools suite</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <a class="footer-link" href="#features">Features</a>
+        <a class="footer-link" href="#how-it-works">How it works</a>
+        <a class="footer-link" href="https://github.com/CHUNK-jp/daily-pulse">GitHub</a>
+        <a class="footer-link" href="#privacy">Privacy</a>
+      </div>
+      <div style="font-size: 13px; color: #3F3F46; font-family: 'JetBrains Mono', monospace;" id="footer-copy"></div>
+    </div>
   </footer>
+
+</div>
+
+<script>
+(function () {
+  var today = new Date();
+  var iso = today.toISOString().slice(0, 10);
+  var monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var pretty = monthNames[today.getMonth()] + ' ' + today.getDate() + ', ' + today.getFullYear();
+
+  document.getElementById('brief-md-name').textContent = iso + '.md';
+  document.getElementById('brief-html-name').textContent = iso + '.html';
+  document.getElementById('footer-copy').textContent = '© ' + today.getFullYear() + ' CHUNK-jp · MIT License';
+
+  var lines = [
+    { k: 'prompt', text: '$ python3 daily_pulse.py run' },
+    { k: 'blank' },
+    { k: 'meta', text: '🌅  Daily Pulse  ·  ' + pretty + '  ·  Morning Brief' },
+    { k: 'divider' },
+    { k: 'fetch', src: 'Hacker News   ', count: '14 stories' },
+    { k: 'fetch', src: 'RSS (3 feeds) ', count: '31 articles' },
+    { k: 'fetch', src: 'Reddit        ', count: ' 9 posts' },
+    { k: 'proc', text: '  → Summarizing with llama3:8b...' },
+    { k: 'blank' },
+    { k: 'section', text: '## Top Stories' },
+    { k: 'blank' },
+    { k: 'shead', tag: '[HN] ', tagColor: '#F59E0B', text: 'Open-source LLMs match GPT-4o on coding benchmarks' },
+    { k: 'sbody', text: '       Quantized 4-bit. Runs on 8 GB. No API key.' },
+    { k: 'blank' },
+    { k: 'shead', tag: '[RSS]', tagColor: '#22C55E', text: ' The hidden cost of algorithmic news curation' },
+    { k: 'sbody', text: '       Filter bubbles run deeper than most realize.' },
+    { k: 'blank' },
+    { k: 'shead', tag: '[r/] ', tagColor: '#A78BFA', text: 'selfhosted · Ollama 0.5.0 ships flash attention' },
+    { k: 'sbody', text: '       30% faster inference on consumer GPUs.' },
+    { k: 'blank' },
+    { k: 'success', text: '✓  Saved → ~/.daily_pulse/' + iso + '.md' }
+  ];
+
+  var delays = [300, 80, 150, 80, 480, 420, 360, 720, 100, 200, 80, 260, 200, 80, 260, 200, 80, 260, 200, 80, 400];
+
+  function renderLine(l) {
+    var div = document.createElement('div');
+    div.className = 'terminal-line';
+    var fam = "'JetBrains Mono', monospace";
+
+    function span(text, color, extraStyle) {
+      var s = document.createElement('span');
+      s.textContent = text;
+      s.style.color = color || '';
+      if (extraStyle) Object.assign(s.style, extraStyle);
+      return s;
+    }
+
+    switch (l.k) {
+      case 'blank':
+        div.style.height = '8px';
+        div.style.padding = '0';
+        break;
+      case 'prompt':
+        div.appendChild(span(l.text, '#22C55E', { flex: '1' }));
+        break;
+      case 'meta':
+        div.appendChild(span(l.text, '#FAFAFA', { fontWeight: '500', flex: '1' }));
+        break;
+      case 'divider':
+        div.appendChild(span('─'.repeat(52), '#2A2A2E', { flex: '1' }));
+        break;
+      case 'fetch':
+        div.style.justifyContent = 'space-between';
+        div.appendChild(span('  →  ' + l.src, '#71717A'));
+        div.appendChild(span('✓  ' + l.count, '#22C55E', { flexShrink: '0', paddingLeft: '16px' }));
+        break;
+      case 'proc':
+        div.appendChild(span(l.text, '#F59E0B', { flex: '1' }));
+        break;
+      case 'section':
+        div.style.paddingTop = '5px';
+        div.appendChild(span(l.text, '#FAFAFA', { fontWeight: '600', flex: '1' }));
+        break;
+      case 'shead':
+        div.appendChild(span(l.tag, l.tagColor, { flexShrink: '0', minWidth: '42px' }));
+        div.appendChild(span(l.text, '#E4E4E7', { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '0', flex: '1' }));
+        break;
+      case 'sbody':
+        div.appendChild(span(l.text, '#52525B', { flex: '1' }));
+        break;
+      case 'success':
+        div.style.paddingTop = '5px';
+        div.appendChild(span(l.text, '#22C55E', { flex: '1' }));
+        break;
+    }
+    return div;
+  }
+
+  var container = document.getElementById('term-lines');
+  var cursor = document.getElementById('term-cursor');
+  var i = 0;
+  var timer;
+
+  function tick() {
+    if (i < lines.length) {
+      container.appendChild(renderLine(lines[i]));
+      var delay = delays[i] != null ? delays[i] : 300;
+      i++;
+      timer = setTimeout(tick, delay);
+    } else {
+      timer = setTimeout(function () {
+        container.innerHTML = '';
+        i = 0;
+        timer = setTimeout(tick, delays[0] || 300);
+      }, 2600);
+    }
+  }
+
+  setTimeout(tick, delays[0] || 300);
+  setInterval(function () {
+    cursor.style.visibility = cursor.style.visibility === 'hidden' ? 'visible' : 'hidden';
+  }, 530);
+})();
+</script>
 
 </body>
 </html>
