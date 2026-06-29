@@ -37,6 +37,9 @@
 
   .hero-grid > div { min-width: 0; }
 
+  .guide-card { background: #09090B; padding: 40px; transition: background .15s; }
+  .guide-card:hover { background: #0E0E10; }
+
   @media (max-width: 640px) {
     .nav-links { display: none !important; }
   }
@@ -51,6 +54,8 @@
     .quickstart-grid { grid-template-columns: 1fr !important; }
     .privacy-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
     .privacy-padding { padding: 40px 24px !important; }
+    .story-grid { grid-template-columns: 1fr !important; gap: 40px !important; }
+    .guide-grid { grid-template-columns: 1fr !important; }
     h1 { font-size: 38px !important; }
     h2 { font-size: 32px !important; }
   }
@@ -458,6 +463,91 @@
             <span style="color: #22C55E;">python3 daily_pulse.py run</span>
           </div>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── WHY I BUILT THIS ── -->
+  <section id="story" style="padding: 0 24px 120px;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="display: grid; grid-template-columns: 220px 1fr; gap: 80px; align-items: start;" class="story-grid">
+        <!-- Left label + author -->
+        <div style="padding-top: 8px; position: sticky; top: 88px;">
+          <div style="font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 14px;">Why I built this</div>
+          <div style="width: 24px; height: 2px; background: #3B82F6;"></div>
+          <div style="margin-top: 48px; padding-top: 40px; border-top: 1px solid #18181B;">
+            <div style="width: 40px; height: 40px; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 14px;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            </div>
+            <div style="font-size: 14px; font-weight: 600; color: #FAFAFA;">The developer</div>
+            <div style="font-size: 12px; color: #52525B; margin-top: 4px; font-family: 'JetBrains Mono', monospace;">@chunk_jp</div>
+          </div>
+        </div>
+        <!-- Right: prose -->
+        <div>
+          <p style="font-size: 20px; color: #FAFAFA; line-height: 1.8; margin-bottom: 32px; letter-spacing: -0.015em; font-weight: 400;">
+            Every news app I tried eventually revealed the same thing: my reading habits were the product. Which articles I opened, how long I stayed, when I scrolled away — all of it was logged, sent somewhere, and folded into an ad profile. I'd open an app to learn what was happening in the world and leave feeling surveilled instead of informed.
+          </p>
+          <p style="font-size: 20px; color: #71717A; line-height: 1.8; margin-bottom: 32px; letter-spacing: -0.015em; font-weight: 400;">
+            I wanted something boring. A plain text file waiting in my home directory at 7am. No push notifications. No infinite scroll. No algorithm quietly deciding what I should care about. Just the top stories from sources I actually trust, summarized plainly, and then done. When I realized a local LLM and a few API calls could do exactly that overnight on my own machine, it felt almost too simple not to build.
+          </p>
+          <p style="font-size: 20px; color: #71717A; line-height: 1.8; letter-spacing: -0.015em; font-weight: 400;">
+            Daily Pulse is the opposite of an app. There's no server watching which stories you open. No engagement metric optimizing for your attention. It runs, it writes a file, it exits. What you do with the brief is entirely your own.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── GUIDE: HOW TO USE DAILY PULSE ── -->
+  <section id="guide" style="padding: 80px 24px 120px; background: #0C0C0E; border-top: 1px solid #18181B; border-bottom: 1px solid #18181B;">
+    <div style="max-width: 1100px; margin: 0 auto;">
+      <div style="text-align: center; margin-bottom: 64px;">
+        <div style="display: inline-block; font-size: 11px; font-weight: 600; color: #52525B; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;">Quick start</div>
+        <h2 style="font-size: 48px; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance;">Four steps to your morning brief.</h2>
+      </div>
+      <div class="guide-grid" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; background: #18181B; border-radius: 16px; overflow: hidden; border: 1px solid #18181B;">
+
+        <div class="guide-card">
+          <div style="display: flex; align-items: flex-start; gap: 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: #3B82F6; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.18); border-radius: 6px; padding: 5px 10px; flex-shrink: 0; letter-spacing: 0.05em; margin-top: 1px;">01</div>
+            <div>
+              <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Clone and configure your sources</h3>
+              <p style="font-size: 14px; color: #71717A; line-height: 1.75;">Clone the repo, run <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 13px;">pip install -r requirements.txt</span>, then open <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 13px;">config.yaml</span> and choose your sources — Hacker News, RSS feeds, and Reddit subreddits.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-card">
+          <div style="display: flex; align-items: flex-start; gap: 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: #3B82F6; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.18); border-radius: 6px; padding: 5px 10px; flex-shrink: 0; letter-spacing: 0.05em; margin-top: 1px;">02</div>
+            <div>
+              <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Run the script — or schedule it</h3>
+              <p style="font-size: 14px; color: #71717A; line-height: 1.75;">Run <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 13px;">python3 daily_pulse.py run</span> once to test it. Then add a cron job so it fires automatically every morning before you wake up.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-card">
+          <div style="display: flex; align-items: flex-start; gap: 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: #3B82F6; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.18); border-radius: 6px; padding: 5px 10px; flex-shrink: 0; letter-spacing: 0.05em; margin-top: 1px;">03</div>
+            <div>
+              <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Local LLM summarizes today's stories</h3>
+              <p style="font-size: 14px; color: #71717A; line-height: 1.75;">Ollama runs on your machine and summarizes every story locally. No internet call to any AI service — your reading list never leaves your computer. Optionally switch to Claude API for higher-quality output.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="guide-card">
+          <div style="display: flex; align-items: flex-start; gap: 20px;">
+            <div style="font-size: 11px; font-weight: 700; color: #3B82F6; font-family: 'JetBrains Mono', monospace; background: rgba(59,130,246,0.08); border: 1px solid rgba(59,130,246,0.18); border-radius: 6px; padding: 5px 10px; flex-shrink: 0; letter-spacing: 0.05em; margin-top: 1px;">04</div>
+            <div>
+              <h3 style="font-size: 17px; font-weight: 600; margin-bottom: 10px; letter-spacing: -0.01em;">Read your brief — no app, no account</h3>
+              <p style="font-size: 14px; color: #71717A; line-height: 1.75;">Open a Markdown or HTML file from <span style="font-family: 'JetBrains Mono', monospace; color: #A1A1AA; font-size: 13px;">~/.daily_pulse/</span> in any editor or browser. No login, no notification, no tracking. Just the news, written for you.</p>
+            </div>
+          </div>
+        </div>
+
       </div>
     </div>
   </section>
